@@ -61,8 +61,9 @@ def on_message(ch, method, properties, body):
     #9d133153-e1c2-4ddb-92ed-3fa3f8e45898
     #c484f244-e758-4e1f-a0c2-442b6b9d38f0
     cursor = db.UserTrip.find({
-       "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', [event['location'][0],event['location'][1]]), ('$maxDistance', 0.1/111.12), ('$uniqueDocs', 1)])
-    }, {"userId": 1, 'body': 1})
+       "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
+          [event['location'][0],event['location'][1]]), ('$maxDistance', 0.1/111.12), ('$uniqueDocs', 1)]),
+          "createdat": { '$gte' : datetime.datetime.utcnow()}}, {"userId": 1, 'body': 1})
     
     affected_users = []
 
@@ -93,10 +94,7 @@ def on_message(ch, method, properties, body):
       channel1.basic_publish(exchange='push_notifications',routing_key='',body=message,
                          properties=pika.BasicProperties(reply_to = queue_name1),mandatory=True)
       print("Sent %r" % message)
-    #message = json.dumps({"type":"INFO","message":"Heavy traffic on your recently planned trip.","userId":"6EEGP034JBLydaotzqZrCs65jRdpfR4d","tripId":"null","location_coordinates":"null"})
-      #channel1.basic_publish(exchange='push_notifications',routing_key='',body=message,
-       #                 properties=pika.BasicProperties(reply_to = queue_name1),mandatory=True)    
-
+    
 channel.basic_consume(on_message,
                       queue=queue_name,
                       no_ack=True)
