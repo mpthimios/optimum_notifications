@@ -62,8 +62,8 @@ def on_message(ch, method, properties, body):
     #c484f244-e758-4e1f-a0c2-442b6b9d38f0
     cursor = db.UserTrip.find({
        "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
-          [event['location'][0],event['location'][1]]), ('$maxDistance', 0.1/111.12), ('$uniqueDocs', 1)]),
-          "createdat": { '$gte' : datetime.datetime.utcnow()}}, {"userId": 1, 'body': 1})
+          [event['latitude'],event['longitude']]), ('$maxDistance', 0.1/111.12), ('$uniqueDocs', 1)]),
+          "body.startTime": { '$gte' : datetime.datetime.utcnow()}}, {"userId": 1, 'body': 1})
     
     affected_users = []
 
