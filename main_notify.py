@@ -67,6 +67,8 @@ def on_message(ch, method, properties, body):
         date = datetime.datetime.utcnow()
         date = pytz.utc.localize(date)
         date_from = date - relativedelta(months=1)
+        date_check_to = date + relativedelta(minutes=10)
+        
         print date_from
         cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "favourite": True, "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
               [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
@@ -75,13 +77,10 @@ def on_message(ch, method, properties, body):
 
         for document in cursor:
             print(document['_id'])
-            #print(document['userId'])
-            #print(document['body'])
-            #j = json.loads(document['body'])
-            #print j['segments']        
-            #db.UserTrip.update({'_id':document['_id']}, {"$set": {'segments':j['segments']}}, upsert=False)
-            if (document['userId'] not in affected_users):
-              affected_users.append([document['userId'], document['_id']])
+            request_date = DP.parse(document['body']['startTime'])
+            if date <= request_date & request_date <= date_check_to:                     
+                if (document['userId'] not in affected_users):
+                    affected_users.append([document['userId'], document['_id']])
 
         #store the new event
         new_event = {
