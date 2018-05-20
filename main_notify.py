@@ -9,6 +9,9 @@ import pymongo
 from bson.son import SON
 import db_credentials
 import datetime
+import dateutil.parser as DP
+import pytz
+from dateutil.relativedelta import relativedelta
 
 credentials = pika.PlainCredentials('pubsub','pubsub')
 params = pika.ConnectionParameters(host='optimum.euprojects.net',port=8925,credentials=credentials)
@@ -41,6 +44,7 @@ channel1.queue_bind(exchange=push_notifications_channel,
 print(' [*] Waiting for logs. To exit press CTRL+C')
 
 def on_message(ch, method, properties, body):
+    global send_event 
     print(" Received [x] %r" % body)
     event = json.loads(body)
 
@@ -48,53 +52,55 @@ def on_message(ch, method, properties, body):
     #g = geocoder.google(event['location'], method='reverse')
 
     #Find users that affected by the event  
+    if event['veryCritical'] == "true":
+        #MongDB connection
+        client = pymongo.MongoClient(db_credentials.mongo_server, db_credentials.mongo_port)
+        client.Optimum.authenticate(db_credentials.user, db_credentials.password)    
+        db = client['Optimum']    
+        #db.UserTrip.create_index([("body.segments.geometryGeoJson.geometry.coordinates", pymongo.GEO2D)])
+        
+        #cursor = db.UserTrip.find({
+        #    "_id": "9d133153-e1c2-4ddb-92ed-3fa3f8e45898"
+        #})    
+        #9d133153-e1c2-4ddb-92ed-3fa3f8e45898
+        #c484f244-e758-4e1f-a0c2-442b6b9d38f0
+        date = datetime.datetime.utcnow()
+        date = pytz.utc.localize(date)
+        date_from = date - relativedelta(months=1)
+        print date_from
+        cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "favourite": True, "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
+              [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
+        
+        affected_users = []
 
-    #MongDB connection
-    client = pymongo.MongoClient(db_credentials.mongo_server, db_credentials.mongo_port)
-    client.Optimum.authenticate(db_credentials.user, db_credentials.password)    
-    db = client['Optimum']    
-    #db.UserTrip.create_index([("body.segments.geometryGeoJson.geometry.coordinates", pymongo.GEO2D)])
-    
-    #cursor = db.UserTrip.find({
-    #    "_id": "9d133153-e1c2-4ddb-92ed-3fa3f8e45898"
-    #})    
-    #9d133153-e1c2-4ddb-92ed-3fa3f8e45898
-    #c484f244-e758-4e1f-a0c2-442b6b9d38f0
-    cursor = db.UserTrip.find({
-       "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
-          [event['latitude'],event['longitude']]), ('$maxDistance', 0.1/111.12), ('$uniqueDocs', 1)]),
-          "body.startTime": { '$gte' : datetime.datetime.utcnow()}}, {"userId": 1, 'body': 1})
-    
-    affected_users = []
+        for document in cursor:
+            print(document['_id'])
+            #print(document['userId'])
+            #print(document['body'])
+            #j = json.loads(document['body'])
+            #print j['segments']        
+            #db.UserTrip.update({'_id':document['_id']}, {"$set": {'segments':j['segments']}}, upsert=False)
+            if (document['userId'] not in affected_users):
+              affected_users.append([document['userId'], document['_id']])
 
-    for document in cursor:
-        print(document['_id'])
-        #print(document['userId'])
-        #print(document['body'])
-        #j = json.loads(document['body'])
-        #print j['segments']        
-        #db.UserTrip.update({'_id':document['_id']}, {"$set": {'segments':j['segments']}}, upsert=False)
-        if (document['userId'] not in affected_users):
-          affected_users.append([document['userId'], document['_id']])
+        #store the new event
+        new_event = {
+          "event": event,
+          "affected_users": affected_users,
+          "datetime": datetime.datetime.utcnow()
+        }
+        db.EventNotifications.insert_one(new_event)
 
-    #store the new event
-    new_event = {
-      "event": event,
-      "affected_users": affected_users,
-      "datetime": datetime.datetime.utcnow()
-    }
-    db.EventNotifications.insert_one(new_event)
-
-    #Send message to the users
-    #CHANGE
-    for affected_user in affected_users:
-      print "affected user"
-      print affected_user[0]
-      message = json.dumps({"type":"CHANGE","message":"Heavy traffic on your recently planned trip.","userId": affected_user[0],"tripId":affected_user[1],"location_name":'Vienna',"location_coordinates":None})
-      channel1.basic_publish(exchange='push_notifications',routing_key='',body=message,
-                         properties=pika.BasicProperties(reply_to = queue_name1),mandatory=True)
-      print("Sent %r" % message)
-    
+        #Send message to the users
+        #CHANGE
+        for affected_user in affected_users:
+          print "affected user"
+          print affected_user[0]
+          message = json.dumps({"type":"CHANGE","message":"Heavy traffic on your recently planned trip.","userId": affected_user[0],"tripId":affected_user[1],"location_name":'Vienna',"location_coordinates":None})
+          channel1.basic_publish(exchange='push_notifications',routing_key='',body=message,
+                             properties=pika.BasicProperties(reply_to = queue_name1),mandatory=True)
+          print("Sent %r" % message)
+              
 channel.basic_consume(on_message,
                       queue=queue_name,
                       no_ack=True)
