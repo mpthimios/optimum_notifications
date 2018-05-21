@@ -67,7 +67,7 @@ def on_message(ch, method, properties, body):
         #c484f244-e758-4e1f-a0c2-442b6b9d38f0
         date = datetime.datetime.utcnow()
         date = pytz.utc.localize(date)
-        date_from = date - relativedelta(months=1)
+        date_from = date - relativedelta(days=-15)
         date_check_to = date + relativedelta(minutes=10)
         date_check_from = date + relativedelta(minutes=-5)
         
