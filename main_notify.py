@@ -45,14 +45,15 @@ print(' [*] Waiting for logs. To exit press CTRL+C')
 
 def on_message(ch, method, properties, body):
     global send_event 
-    print(" Received [x] %r" % body)
     event = json.loads(body)
-
+    #print(" Received [x] %r" % body)
     #Find address from latitude longitude
     #g = geocoder.google(event['location'], method='reverse')
 
     #Find users that affected by the event  
-    if event['veryCritical'] == "true":
+    if event['veryCritical'] == True:
+        print "very critical event"
+        print(" Received [x] %r" % body)
         #MongDB connection
         client = pymongo.MongoClient(db_credentials.mongo_server, db_credentials.mongo_port)
         client.Optimum.authenticate(db_credentials.user, db_credentials.password)    
@@ -68,18 +69,25 @@ def on_message(ch, method, properties, body):
         date = pytz.utc.localize(date)
         date_from = date - relativedelta(months=1)
         date_check_to = date + relativedelta(minutes=10)
+        date_check_from = date + relativedelta(minutes=-5)
         
         print date_from
+        print date_check_from
+        print date_check_to
         cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "favourite": True, "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
               [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
         
+        print "found documents:"
+        print cursor.count()
         affected_users = []
 
         for document in cursor:
             print(document['_id'])
             request_date = DP.parse(document['body']['startTime'])
-            if date <= request_date & request_date <= date_check_to:                     
+            if (date_check_from <= request_date) & (request_date <= date_check_to):  
                 if (document['userId'] not in affected_users):
+                    print "affected_user"
+                    print document['userId']
                     affected_users.append([document['userId'], document['_id']])
 
         #store the new event

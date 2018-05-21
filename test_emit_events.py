@@ -14,7 +14,7 @@ connection = pika.BlockingConnection(params)
 
 channel = connection.channel()
 
-message = json.dumps({"event_type" : "traffic_issue","location" : [14.4874945, 46.0424301],"time": "time_of_occurrence"})
+message = json.dumps({"confidence":{"general":0.36,"bad_weather":0.092,"decreasing_speed":0.23,"social_media":"NaN"},"project":"sensor","bearing":180.0,"veryCritical":True,"highway":"M42","timestamp":1526881431104,"latitude":16.349067,"longitude":48.202386,"event_type":"traffic_issue","issue_type":"slowdown"})
 channel.basic_publish(exchange=cep_issues_channel,
                       routing_key='',
                       body=message)
