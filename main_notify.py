@@ -74,8 +74,10 @@ def on_message(ch, method, properties, body):
         print date_from
         print date_check_from
         print date_check_to
-        cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "favourite": True, "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
-              [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
+        #cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "favourite": True, "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', 
+        #      [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
+              
+        cursor = db.UserTrip.find({"createdat": { '$gte' : date_from}, "body.segments.modeOfTransport.generalizedType": "CAR", "body.segments.geometryGeoJson.geometry.coordinates": SON([('$near', [event['latitude'],event['longitude']]), ('$maxDistance', 10), ('$uniqueDocs', True)])}, {"userId": 1, 'body': 1, 'favourite': 1, "createdat": 1, "_id": 1})
         
         print "found documents:"
         print cursor.count()
