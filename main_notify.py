@@ -82,9 +82,10 @@ def on_message(ch, method, properties, body):
         affected_users = []
 
         for document in cursor:
-            print(document['_id'])
+            #print(document['_id'])
             request_date = DP.parse(document['body']['startTime'])
-            if (date_check_from <= request_date) & (request_date <= date_check_to):  
+            if (date_check_from <= request_date) & (request_date <= date_check_to):
+                print request_date
                 if (document['userId'] not in affected_users):
                     print "affected_user"
                     print document['userId']
